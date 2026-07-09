@@ -10,11 +10,15 @@ else:
     # Set timeout for Postgres so it fails fast (10s) instead of hanging indefinitely
     connect_args = {"connect_timeout": 10}
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True
-)
+engine_args = {
+    "connect_args": connect_args,
+    "pool_pre_ping": True
+}
+if not settings.DATABASE_URL.startswith("sqlite"):
+    # Enable multi-row VALUES clause batching for 100x faster bulk inserts on Postgres
+    engine_args["executemany_mode"] = "values"
+
+engine = create_engine(settings.DATABASE_URL, **engine_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
