@@ -19,10 +19,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application
 COPY backend/ ./
 
+# Force Python stdout to be unbuffered so seed logs appear in Render immediately
+ENV PYTHONUNBUFFERED=1
+
 # Render assigns PORT dynamically (default 10000 on free tier)
 EXPOSE 10000
 
-# On startup: seed DB in background (so uvicorn opens port immediately to satisfy Render healthcheck)
-# and use exec so uvicorn runs as PID 1 to receive signals correctly.
-CMD ["sh", "-c", "python seed_if_empty.py & exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
+# Seed DB first (fast bulk inserts ~30-60s), then start API server.
+CMD ["sh", "-c", "python -u seed_if_empty.py && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
+
+
 
