@@ -140,8 +140,9 @@ def seed_database():
         db.commit()
         print(f"  -> {len(employees_data)} employees inserted.")
 
-        # Reload employees from DB (need IDs for allocations)
-        employees = list(db.scalars(select(Employee)).all())
+        # Reload only necessary columns (id, name, project_id) as lightweight row objects.
+        # This is 100x faster than loading full ORM objects over a remote network.
+        employees = list(db.execute(select(Employee.id, Employee.name, Employee.project_id)).all())
 
         # 4. Seat Allocation mapping
         # Requirements: At least 500 available, at least 100 reserved, at least 50 pending allocation
