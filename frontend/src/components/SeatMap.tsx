@@ -338,7 +338,7 @@ export const SeatMap: React.FC = () => {
                         </span>
                         <div className="font-bold text-slate-800 text-sm">Seat Reserved</div>
                         <div className="font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-0.5 inline-block mt-1">
-                          Reserved for: {project?.name || 'Project Talos'}
+                          Reserved
                         </div>
                         
                         {userRole === 'HR' && (
