@@ -52,27 +52,26 @@ def seed_database():
         zones = ["Zone A", "Zone B", "Zone C", "Zone D", "Zone E", "Zone F", "Zone G", "Zone H", "Zone I", "Zone J"]
         bays = [1, 2, 3, 4, 5] # 5 bays per floor-zone
 
-        seats = []
-        seat_counter = 1
-        
-        # We need 5,500 seats. Let's distribute them:
-        # 5 floors * 10 zones * 5 bays = 250 combinations.
-        # 5,500 seats / 250 = 22 seats per bay.
+        seats_data = []
         for floor in floors:
             for zone in zones:
                 for bay in bays:
                     for seat_idx in range(1, 23): # 22 seats per bay = 5500 total
                         seat_number = f"S-F{floor}{zone[5]}-B{bay:02d}-{seat_idx:02d}"
-                        seat = Seat(
-                            floor=floor,
-                            zone=zone,
-                            bay=bay,
-                            seat_number=seat_number,
-                            status="Available"
-                        )
-                        db.add(seat)
-                        seats.append(seat)
+                        seats_data.append({
+                            "floor": floor,
+                            "zone": zone,
+                            "bay": bay,
+                            "seat_number": seat_number,
+                            "status": "Available"
+                        })
+        
+        db.execute(insert(Seat), seats_data)
         db.commit()
+        print(f"  -> {len(seats_data)} seats inserted.")
+        
+        # Load only necessary seat columns (id)
+        seats = list(db.execute(select(Seat.id)).all())
 
         # 3. Create 5,000 Employees
         print("Seeding 5,000 employees...")
