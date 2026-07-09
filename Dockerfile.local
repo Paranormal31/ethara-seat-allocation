@@ -1,0 +1,34 @@
+# ==========================================
+# LOCAL DEV ONLY — builds frontend + backend
+# into a single container for docker-compose.
+# For production: see Dockerfile (backend only)
+# ==========================================
+
+# Stage 1: Build React frontend
+FROM node:18-alpine AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: FastAPI backend + bundled frontend
+FROM python:3.10-slim AS backend-runner
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ ./
+
+# Bundle the built frontend into backend static/
+COPY --from=frontend-builder /frontend/dist ./static
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "python seed_if_empty.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

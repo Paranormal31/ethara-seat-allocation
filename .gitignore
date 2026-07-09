@@ -1,0 +1,37 @@
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.env
+*.db
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env
+
+# Backend env
+backend/.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes
+pgdata/
+
+# AI Prompt files and Assessment PDF (internal - do not commit)
+AI_PROMPTS.md
+ai_temp_prompts.md
+Ayush_AI_PROMPTS.md
+scratch_suggest.py
+*.pdf
