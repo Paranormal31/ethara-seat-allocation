@@ -138,7 +138,7 @@ def seed_database():
         # Bulk insert all employees at once — much faster than ORM one-by-one
         db.execute(insert(Employee), employees_data)
         db.commit()
-        print(f"  → {len(employees_data)} employees inserted.")
+        print(f"  -> {len(employees_data)} employees inserted.")
 
         # Reload employees from DB (need IDs for allocations)
         employees = list(db.scalars(select(Employee)).all())
@@ -166,7 +166,7 @@ def seed_database():
             conn.execute(text(f"UPDATE seats SET status='Maintenance' WHERE id IN ({id_list(maintenance_ids)})"))
             conn.execute(text(f"UPDATE seats SET status='Available'   WHERE id IN ({id_list(available_ids)})"))
             conn.commit()
-        print("  → Seat statuses updated.")
+        print("  -> Seat statuses updated.")
 
         # Create bulk allocations
         random.shuffle(employees)
@@ -219,7 +219,7 @@ def seed_database():
         # Bulk insert allocations
         db.execute(insert(SeatAllocation), allocations_data)
         db.commit()
-        print(f"  → {len(allocations_data)} seat allocations inserted.")
+        print(f"  -> {len(allocations_data)} seat allocations inserted.")
         print("Database seeding completed successfully!")
         print(f"Stats:\n- Total Projects: {len(projects)}\n- Total Seats: 5,500 (Available: {len(available_ids)}, Occupied: {len(occupied_ids)}, Reserved: {len(reserved_ids)}, Maintenance: {len(maintenance_ids)})\n- Total Employees: 5,000 (Seated: ~4,850, Pending Allocation: ~150)")
 
