@@ -19,12 +19,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application
 COPY backend/ ./
 
-# Copy and make the startup script executable
-COPY backend/start.sh ./start.sh
-RUN chmod +x ./start.sh
-
 # Render assigns PORT dynamically (default 10000 on free tier)
 EXPOSE 10000
 
-# Use start.sh: seeds in background, uvicorn starts immediately
-CMD ["./start.sh"]
+# On startup: seed DB in background (so uvicorn opens port immediately to satisfy Render healthcheck)
+# and use exec so uvicorn runs as PID 1 to receive signals correctly.
+CMD ["sh", "-c", "python seed_if_empty.py & exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
+
