@@ -2,7 +2,7 @@ import os
 import sys
 from datetime import datetime, date, timedelta
 import random
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, insert, update
 
 # Add parent directory to path to enable local app imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -99,7 +99,7 @@ def seed_database():
             "Sato", "Suzuki", "Takahashi", "Tanaka", "Watanabe", "Ito", "Yamamoto", "Nakamura", "Kobayashi", "Kato"
         ]
 
-        employees = []
+        employees_data = []
         start_date = date(2025, 1, 1)
 
         for i in range(1, 5001):
@@ -108,7 +108,6 @@ def seed_database():
             l_name = random.choice(last_names)
             name = f"{f_name} {l_name}"
             
-            # Clean special characters from names for emails
             clean_f = "".join(c for c in f_name.lower() if c.isalnum())
             clean_l = "".join(c for c in l_name.lower() if c.isalnum())
             email = f"{clean_f}.{clean_l}{i}@ethara.ai"
@@ -116,73 +115,67 @@ def seed_database():
             dept = random.choice(departments)
             role = random.choice(roles)
             joining_date = start_date + timedelta(days=random.randint(0, 500))
-            
-            # Map randomly to projects
             proj = random.choice(projects)
-            
-            # Set Amit details specifically to match PDF example
+
             if i == 42:
                 name = "Amit"
                 email = "amit@ethara.ai"
-                # Locate Project Talos
                 talos_proj = next((p for p in projects if p.name == "Project Talos"), None)
                 if talos_proj:
                     proj = talos_proj
 
-            emp = Employee(
-                employee_code=emp_code,
-                name=name,
-                email=email,
-                department=dept,
-                role=role,
-                joining_date=joiningDate if 'joiningDate' in locals() else joining_date, # fallback
-                status="Active",
-                project_id=proj.id
-            )
-            db.add(emp)
-            employees.append(emp)
+            employees_data.append({
+                "employee_code": emp_code,
+                "name": name,
+                "email": email,
+                "department": dept,
+                "role": role,
+                "joining_date": joining_date,
+                "status": "Active",
+                "project_id": proj.id,
+            })
+
+        # Bulk insert all employees at once — much faster than ORM one-by-one
+        db.execute(insert(Employee), employees_data)
         db.commit()
+        print(f"  → {len(employees_data)} employees inserted.")
+
+        # Reload employees from DB (need IDs for allocations)
+        employees = list(db.scalars(select(Employee)).all())
 
         # 4. Seat Allocation mapping
         # Requirements: At least 500 available, at least 100 reserved, at least 50 pending allocation
         # Total seats: 5,500. Total employees: 5,000.
-        # Let's allocate 4,850 employees to seats.
-        # This leaves 150 employees unallocated (pending allocation count: 150 >= 50)
-        # Occupied seats: 4,850.
-        # Let's reserve 120 seats (reserved seats count: 120 >= 100).
-        # Let's set 30 seats to Maintenance.
-        # Available seats remaining: 5,500 - 4,850 - 120 - 30 = 500 available seats (available seats: 500 >= 500).
-        
+        # Occupied: 4,850 | Reserved: 120 | Maintenance: 30 | Available: 500
         print("Mapping seat allocations and states...")
-        
-        # Shuffle seats to allocate randomly
-        random.shuffle(seats)
-        
-        occupied_seats = seats[:4850]
-        reserved_seats = seats[4850:4970]
-        maintenance_seats = seats[4970:5000]
-        available_seats = seats[5000:]
 
-        # Mark seat statuses
-        for s in occupied_seats:
-            s.status = "Occupied"
-        for s in reserved_seats:
-            s.status = "Reserved"
-        for s in maintenance_seats:
-            s.status = "Maintenance"
-        for s in available_seats:
-            s.status = "Available"
-        db.commit()
+        seat_ids = [s.id for s in seats]
+        random.shuffle(seat_ids)
 
-        # Create active allocations
-        # Shuffle employees
+        occupied_ids   = seat_ids[:4850]
+        reserved_ids   = seat_ids[4850:4970]
+        maintenance_ids = seat_ids[4970:5000]
+        available_ids  = seat_ids[5000:]
+
+        # Bulk update seat statuses using WHERE id IN (...)
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            def id_list(ids): return ",".join(str(i) for i in ids)
+            conn.execute(text(f"UPDATE seats SET status='Occupied'    WHERE id IN ({id_list(occupied_ids)})"))
+            conn.execute(text(f"UPDATE seats SET status='Reserved'    WHERE id IN ({id_list(reserved_ids)})"))
+            conn.execute(text(f"UPDATE seats SET status='Maintenance' WHERE id IN ({id_list(maintenance_ids)})"))
+            conn.execute(text(f"UPDATE seats SET status='Available'   WHERE id IN ({id_list(available_ids)})"))
+            conn.commit()
+        print("  → Seat statuses updated.")
+
+        # Create bulk allocations
         random.shuffle(employees)
-        seated_employees = employees[:4850]
-        
-        # Specifically force Amit to be seated on Seat B4-23 on Floor 2, Zone B, Bay 4 in Project Talos to match PDF
+        seated_employees = list(employees[:4850])
+
+        # Find Amit and give him a specific seat
         amit_emp = next((e for e in employees if e.name == "Amit"), None)
+        amit_alloc = None
         if amit_emp:
-            # Find Floor 2, Zone B, Bay 4, Seat B4-23
             target_seat = db.scalar(
                 select(Seat).where(
                     and_(
@@ -194,46 +187,41 @@ def seed_database():
                 )
             )
             if target_seat:
-                target_seat.status = "Occupied"
-                # If target_seat was in another status group, swap it
-                if target_seat in available_seats:
-                    available_seats.remove(target_seat)
-                
-                # Make sure amit_emp is in seated_employees
-                if amit_emp not in seated_employees:
-                    # replace a random employee
-                    replaced_emp = seated_employees.pop()
-                    seated_employees.append(amit_emp)
-
-                # Allocate target seat to Amit
-                alloc = SeatAllocation(
-                    employee_id=amit_emp.id,
-                    seat_id=target_seat.id,
-                    project_id=amit_emp.project_id,
-                    allocation_status="Active",
-                    allocation_date=datetime.utcnow() - timedelta(days=10)
-                )
-                db.add(alloc)
-                # Remove this seat from occupied list so we don't double allocate it below
-                if target_seat in occupied_seats:
-                    occupied_seats.remove(target_seat)
+                db.execute(update(Seat).where(Seat.id == target_seat.id).values(status="Occupied"))
+                db.commit()
+                amit_alloc = {
+                    "employee_id": amit_emp.id,
+                    "seat_id": target_seat.id,
+                    "project_id": amit_emp.project_id,
+                    "allocation_status": "Active",
+                    "allocation_date": datetime.utcnow() - timedelta(days=10),
+                }
                 if amit_emp in seated_employees:
                     seated_employees.remove(amit_emp)
+                if target_seat.id in occupied_ids:
+                    occupied_ids.remove(target_seat.id)
 
-        # Allocate rest of seated employees
-        for emp, seat in zip(seated_employees, occupied_seats):
-            alloc = SeatAllocation(
-                employee_id=emp.id,
-                seat_id=seat.id,
-                project_id=emp.project_id,
-                allocation_status="Active",
-                allocation_date=datetime.utcnow() - timedelta(days=random.randint(1, 30))
-            )
-            db.add(alloc)
-        
+        # Build allocations list
+        alloc_occupied = occupied_ids[:len(seated_employees)]
+        allocations_data = [
+            {
+                "employee_id": emp.id,
+                "seat_id": seat_id,
+                "project_id": emp.project_id,
+                "allocation_status": "Active",
+                "allocation_date": datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+            }
+            for emp, seat_id in zip(seated_employees, alloc_occupied)
+        ]
+        if amit_alloc:
+            allocations_data.append(amit_alloc)
+
+        # Bulk insert allocations
+        db.execute(insert(SeatAllocation), allocations_data)
         db.commit()
+        print(f"  → {len(allocations_data)} seat allocations inserted.")
         print("Database seeding completed successfully!")
-        print(f"Stats:\n- Total Projects: {len(projects)}\n- Total Seats: 5,500 (Available: {len(available_seats)}, Occupied: {len(occupied_seats) + 1}, Reserved: {len(reserved_seats)}, Maintenance: {len(maintenance_seats)})\n- Total Employees: 5,000 (Seated: 4,850, Pending Allocation: 150)")
+        print(f"Stats:\n- Total Projects: {len(projects)}\n- Total Seats: 5,500 (Available: {len(available_ids)}, Occupied: {len(occupied_ids)}, Reserved: {len(reserved_ids)}, Maintenance: {len(maintenance_ids)})\n- Total Employees: 5,000 (Seated: ~4,850, Pending Allocation: ~150)")
 
     except Exception as e:
         db.rollback()

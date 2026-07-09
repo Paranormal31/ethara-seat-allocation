@@ -54,7 +54,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timestamp: new Date(),
     },
   ]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true); // true until first fetch completes
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole>('HR');
   const [currentEmployee, setCurrentEmployee] = useState<any | null>(null);
@@ -83,9 +83,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         SeatAPI.list(),
       ]);
       setDashboardData(dash);
-      setEmployees(emps);
-      setProjects(projs);
-      setSeats(sts);
+      setEmployees(Array.isArray(emps) ? emps : []);
+      setProjects(Array.isArray(projs) ? projs : []);
+      setSeats(Array.isArray(sts) ? sts : []);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load workspace data. Please make sure the backend server is running.');
     } finally {

@@ -10,7 +10,19 @@ import { ChatSidebar } from './components/ChatSidebar';
 import { ShieldAlert } from 'lucide-react';
 
 const WorkspaceLayout: React.FC = () => {
-  const { activeTab, error, refreshAllData } = useApp();
+  const { activeTab, error, loading, refreshAllData } = useApp();
+
+  // Show loading splash while initial data fetch is in progress
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 flex-col gap-4">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate-300 text-sm font-mono">Loading Ethara Workspace...</p>
+        <p className="text-slate-500 text-xs font-mono">Connecting to backend…</p>
+      </div>
+    );
+  }
+
 
   const renderActiveScreen = () => {
     switch (activeTab) {
