@@ -329,8 +329,6 @@ export const SeatMap: React.FC = () => {
               <div className="p-4 border border-slate-200 rounded space-y-3 bg-slate-50">
                 {(() => {
                   if (selectedSeat.status === 'Reserved') {
-                    const resAlloc = selectedSeat.allocations?.find((a: any) => a.allocation_status === 'Reserved');
-                    const project = resAlloc ? projects.find(p => p.id === resAlloc.project_id) : null;
                     return (
                       <div className="space-y-2 text-xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
