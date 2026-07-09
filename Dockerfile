@@ -22,5 +22,6 @@ COPY backend/ ./
 # Expose the port Render assigns via $PORT env var
 EXPOSE 8000
 
-# On startup: seed if DB is empty, then launch API server
-CMD ["sh", "-c", "python seed_if_empty.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# On startup: seed DB in background (so uvicorn opens the port immediately),
+# then start the API server. Render requires a port to be open quickly.
+CMD ["sh", "-c", "python seed_if_empty.py & uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
