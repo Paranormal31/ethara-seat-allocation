@@ -165,7 +165,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const response = await AIAPI.query(query, userRole === 'Employee' ? currentEmployee?.id : null);
       const assistantMsg: ChatMessage = {
         sender: 'assistant',
-        text: response.response,
+        text: response.answer,
         timestamp: new Date(),
       };
       setAiMessages(prev => [...prev, assistantMsg]);
